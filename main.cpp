@@ -16,7 +16,7 @@ class FROGAPP :public App {
 	Camera camera{glm::vec3(0),glm::vec3(0,0,-90)};
 	
 	virtual void onInitialize() override {
-		frog.loadFromFile("res\\tiny_frog\\scene.gltf");
+		frog.load("res\\tiny_frog\\scene.gltf");
 		shader=Shader("res/shader.vs","res/shader.fs");
 		window.setIcon("frog.png");
 		camera.update();
@@ -30,21 +30,21 @@ class FROGAPP :public App {
 		if (state == 0) Color += glm::vec3(0.0002f, 0, -0.0002f);
 		if (state == 1) Color += glm::vec3(-0.0002f, 0.0002f, 0);
 		if (state == 2) Color += glm::vec3(0, -0.0002f, 0.0002f);
-		frog.transform.Rotation += glm::vec3(0, 0.02f, 0.02f);
-		if (frog.transform.Size.y > 7 && !sizeState) {
+		frog.transform.rotation += glm::vec3(0, 0.02f, 0.02f);
+		if (frog.transform.size.y > 7 && !sizeState) {
 			sizeState = true;
 			sizeAccel = 0.00001f;
 		}
-		else if(frog.transform.Size.y < 1 && sizeState) {
+		else if(frog.transform.size.y < 1 && sizeState) {
 			sizeState = false;
 			sizeAccel = 0.00001f;
 		}
 		if (!sizeState) {
-			frog.transform.Size += glm::vec3(sizeAccel * deltaTime);
+			frog.transform.size += glm::vec3(sizeAccel * deltaTime);
 			sizeAccel += 0.00001f;
 		}
 		else {
-			frog.transform.Size -= glm::vec3(sizeAccel * deltaTime);
+			frog.transform.size -= glm::vec3(sizeAccel * deltaTime);
 			sizeAccel += 0.00001f;
 		}
 		window.setClearColor(Color);
@@ -56,7 +56,7 @@ class FROGAPP :public App {
 		frog.draw(&shader);
 	}
 	virtual void onShutdown() override {
-		frog.clearMeshes();
+		frog.remove();
 		shader.remove();
 	}
 
