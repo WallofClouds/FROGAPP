@@ -36,10 +36,8 @@ class FROGAPP :public App {
 		bg.init("res/audio/chess.mp3", 0.1f, true)->play();
 		sfx.init("res/audio/click1.mp3", 0.6F);
 		sfx2.init("res/audio/click2.mp3", 0.6F);
-		//points = std::to_integer(StrFromFile("save").c_str());
 		if(std::filesystem::exists("save"))
 			sscanf(StrFromFile("save").c_str(), "%zu", &points);
-		// Say random phrase.
 		__time64_t long_time;
 		_time64(&long_time);
 		srand(long_time);
@@ -131,8 +129,5 @@ class FROGAPP :public App {
 };
 
 int main() {
-
 	return FROGAPP{}.start("You need to burn your pc, now.");
-
-
 }
