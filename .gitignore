@@ -1,3 +1,10 @@
 build/*
 !build/res
 pkgs
+!build/app.rc
+!build/frog.ico
+!build/OpenAL32.dll
+!build/freetype.dll
+build/engine/freetype/*
+!build/engine/freetype/
+!build/engine/freetype/freetype.lib
