@@ -22,6 +22,6 @@
 - [ ] *РАЗЛИЧНЫЕ ФОНЫ ДЛЯ ЛЯГУШЕК*
 
 ## Скриншоты
-![FROG 1](docs/1.png)
-![FROG 2](docs/2.png)
-![FROG 3](docs/3.png)
+![FROG 1](docs/1.jpg)
+![FROG 2](docs/2.jpg)
+![FROG 3](docs/3.jpg)
