@@ -4,16 +4,15 @@ out vec4 frag_COLOR;
 
 uniform sampler2D image;
 uniform vec4 color;
-uniform bool sampleAlpha;
+uniform bool isFont;
 uniform bool hasTexture;
-uniform bool dontApplyColor;
+uniform bool colorToSampledAlpha;
 
 void main() {
 	vec4 sampled = texture(image, frag_UV);
-	if(sampleAlpha) sampled = vec4(1.0, 1.0, 1.0, texture(image, frag_UV).r);
+	if(isFont) sampled = vec4(1.0, 1.0, 1.0, texture(image, frag_UV).r);
 	if(hasTexture) {
-		if(!dontApplyColor) frag_COLOR = color * sampled;
-		else frag_COLOR = sampled;
-	}
-	else frag_COLOR = color;
+		if(colorToSampledAlpha) frag_COLOR = vec4(color.rgb, sampled.a);
+		else frag_COLOR = color * sampled;
+	} else frag_COLOR = color;
 }
