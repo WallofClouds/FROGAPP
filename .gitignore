@@ -1,10 +1,23 @@
+# CMake garbage
+CMakeLists.txt.user
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Testing
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+ZERO_CHECK.log
+
+# IDE garbage
+out
+.vs
+.vscode
+
+# Build resources
 build/*
-!build/res
+engine
 pkgs
-!build/app.rc
-!build/frog.ico
-!build/OpenAL32.dll
-!build/freetype.dll
-build/engine/freetype/*
-!build/engine/freetype/
-!build/engine/freetype/freetype.lib
