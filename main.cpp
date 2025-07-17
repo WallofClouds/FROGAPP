@@ -33,8 +33,8 @@ const char* winNameVariants[winNameVariantsNum]={
 	"Try Terraria Infernum \U+1F480"
 };
 /// Upgrades
-const size_t upgradeCount=4;
-size_t obtainedUpgradeCount=0;
+const unsigned int upgradeCount=4;
+unsigned int obtainedUpgradeCount=0;
 const char* upgradeDescription[upgradeCount]={
 	"Hold any mouse button/spacebar to gain points",
 	"Get points from all the frogs",
@@ -58,29 +58,24 @@ struct Timer {
 	void tick(double tDT) {time-=tDT;}
 	bool isOver() {return time<=0;}
 };
-struct Upgrades {
-	bool holdToClick;
-	bool multiFrog;
-	bool idleGain;
-	bool betterHoldToClick;
-
-	void obtain(unsigned int tId) {
-		switch(tId) {
-			case 0: holdToClick=true; break;
-			case 1: multiFrog=true; break;
-			case 2: idleGain=true; break;
-			case 3: betterHoldToClick=true; break;
-		}
-	}
-	bool hasAll() {
-		return holdToClick&&multiFrog&&idleGain&&
-			betterHoldToClick;
-	}
-};
 struct SaveData {
 	unsigned int points;
 	unsigned int prestiege;
-	Upgrades upgrades;
+	bool upg[upgradeCount];
+
+	void obtain(unsigned int tId) {
+		if(tId>=upgradeCount) return;
+		obtainedUpgradeCount+=1;
+	}
+	bool holdToClick() {return upg[0];}
+	bool multiFrog() {return upg[1];}
+	bool idleGain() {return upg[2];}
+	bool betterHoldToClick() {return upg[3];}
+	bool hasAll() {
+		for(unsigned int i=0;i<upgradeCount;i++)
+			if(!upg[i]) return false;
+		return true;
+	}
 
 	void load() {
 		if(!std::filesystem::exists("save")) return;
@@ -90,33 +85,31 @@ struct SaveData {
 		if(saveFile.size()>1) prestiege=std::stoi(saveFile[1]);
 		//Load upgrades
 		if(saveFile.size()>2) {
-			upgrades.holdToClick=std::stoi(saveFile[2]);
-			upgrades.idleGain=std::stoi(saveFile[3]);
-			upgrades.multiFrog=std::stoi(saveFile[4]);
+			upg[0]=std::stoi(saveFile[2]);
+			upg[1]=std::stoi(saveFile[3]);
+			upg[2]=std::stoi(saveFile[4]);
 		}
-		if(saveFile.size()>5) upgrades.betterHoldToClick=std::stoi(saveFile[5]);
+		if(saveFile.size()>5) upg[3]=std::stoi(saveFile[5]);
 		//Enumerate obtained updates
-		if(upgrades.betterHoldToClick) obtainedUpgradeCount+=1;
-		if(upgrades.holdToClick) obtainedUpgradeCount+=1;
-		if(upgrades.idleGain) obtainedUpgradeCount+=1;
-		if(upgrades.multiFrog) obtainedUpgradeCount+=1;
+		for(unsigned int i=0;i<upgradeCount;i++)
+			if(upg[i]) obtainedUpgradeCount+=1;
 	}
 	void save() {
 		StrToFile("save",
 			std::to_string(points) + "\n"
 			+ std::to_string(prestiege) + "\n"
-			+ std::to_string(upgrades.holdToClick) + "\n"
-			+ std::to_string(upgrades.idleGain) + "\n"
-			+ std::to_string(upgrades.multiFrog) + "\n"
-			+ std::to_string(upgrades.betterHoldToClick));
+			+ std::to_string(holdToClick()) + "\n"
+			+ std::to_string(multiFrog()) + "\n"
+			+ std::to_string(idleGain()) + "\n"
+			+ std::to_string(betterHoldToClick()));
 	}
 };
 
 class FROGADROID : public Firesteel::App {
 	// Local variables
-	bool sizeState=false, fullscreen=false;
+	bool sizeState=false, fullscreen=false, recievedClick=false;
 	int state=0;
-	float sizeAccel=0.00001f, impact=0;
+	float sizeAccel=0.00001f, impact=0, speeenMultiFrog=0;
 	glm::vec3 Color{0,0,1}, Size{0};
 	Shader base, text;
 	Camera camera{glm::vec3(0),glm::vec3(0,0,-90)};
@@ -124,8 +117,9 @@ class FROGADROID : public Firesteel::App {
 	Source sfx, sfx2;
 	Button prestiegeBtn, resetBtn, muteBtn, unmuteBtn, upgradeBtn1, upgradeBtn2;
 	// Static variables
-	static bool isBgRainbow, showPrestiegeBtns, randomizedCards, canClick, triggeredAnEnding;
+	static bool isBgRainbow, showUpgradeCards, randomizedCards, canClick, triggeredAnEnding;
 	static int upgradeHovered;
+	static float oldThemeVal;
 	static unsigned int upgrade1, upgrade2;
 	static Timer holdClickCooldown, idleCooldown;
 	static SaveData save;
@@ -137,7 +131,7 @@ class FROGADROID : public Firesteel::App {
 	void handleInput() {
 		if(Keyboard::keyDown(KeyCode::ESCAPE)) window.close();
 		//Idle gain
-		if(save.upgrades.idleGain&&idleCooldown.isOver()) {
+		if(save.idleGain()&&idleCooldown.isOver()) {
 			switch(save.prestiege) {
 			case 0:
 				save.points+=1;
@@ -150,16 +144,16 @@ class FROGADROID : public Firesteel::App {
 				break;
 			}
 			idleCooldown.start();
-		} else if(save.upgrades.idleGain) idleCooldown.tick(deltaTime);
+		} else if(save.idleGain()) idleCooldown.tick(deltaTime);
 		//Clicks
-		bool recievedClick=save.upgrades.holdToClick?
+		recievedClick=save.holdToClick()?
 			Mouse::getButton(0)||Keyboard::getKey(KeyCode::SPACEBAR)||Mouse::getButton(1) :
 			Mouse::buttonDown(0)||Keyboard::keyDown(KeyCode::SPACEBAR)||Mouse::buttonDown(1);
 		//Hold to click
-		if(save.upgrades.holdToClick&&holdClickCooldown.isOver()) {
+		if(save.holdToClick()&&holdClickCooldown.isOver()) {
 			canClick=true;
 			if(recievedClick) holdClickCooldown.start();
-		} else if(save.upgrades.holdToClick) {
+		} else if(save.holdToClick()) {
 			canClick=false;
 			holdClickCooldown.tick(deltaTime);
 		} else {
@@ -174,14 +168,14 @@ class FROGADROID : public Firesteel::App {
 				break;
 			case 1:
 				save.points += 2;
-				if(save.upgrades.multiFrog) save.points += 1;
+				if(save.multiFrog()) save.points += 1;
 				break;
 			case 2:
 				save.points += 5;
-				if(save.upgrades.multiFrog) save.points += 3;
+				if(save.multiFrog()) save.points += 3;
 				break;
 			}
-			if(impact <= 3.5f && Mouse::buttonDown(0)) impact += 0.25f;
+			if(impact <= 3.5f && recievedClick && canClick) impact += 0.25f;
 			if(getRandom()) sfx.play();
 			else sfx2.play();
 		}
@@ -207,12 +201,17 @@ class FROGADROID : public Firesteel::App {
 	static void prestiegeEvent() {
 		LOG_INFO("Triggered prestiege");
 		//Pseudo-reset
+		oldThemeVal=2;
 		save.points=0;
 		isBgRainbow=false;
-		showPrestiegeBtns=false;
 		randomizedCards=false;
+		frogVariants[0].transform.position=
+		frogVariants[1].transform.position=
+		frogVariants[2].transform.position=
+		glm::vec3(0,0,-2);
 		//Check prestiege
-		if(!showPrestiegeBtns) save.prestiege += 1;
+		if(!showUpgradeCards) save.prestiege += 1;
+		showUpgradeCards=false;
 		switch(save.prestiege) {
 		case 0:
 			displayFrog=&frogVariants[0];
@@ -318,12 +317,12 @@ class FROGADROID : public Firesteel::App {
 	// Setup UI positions
 	void updateUI(bool tButtonVisible) {
 		//Is prestiege button needed?
-		if(tButtonVisible && !showPrestiegeBtns) {
+		if(tButtonVisible && !showUpgradeCards) {
 			prestiegeBtn.setPositon(glm::vec2(window.getWidth() / 2 - 120, 200));
 			prestiegeBtn.update(window.getSize());
 		}
 		//Setup upgrade cards
-		if(showPrestiegeBtns) {
+		if(showUpgradeCards) {
 			upgradeBtn1.setSize(glm::vec2(window.getWidth() * 0.2f, window.getHeight() * 0.35f));
 			upgradeBtn2.setSize(glm::vec2(window.getWidth() * 0.2f, window.getHeight() * 0.35f));
 			upgradeBtn1.setPositon(glm::vec2(70, upgradeBtn1.getSize().y + 32));
@@ -338,11 +337,29 @@ class FROGADROID : public Firesteel::App {
 		if(!bg.isPlaying()) muteBtn.update(window.getSize());
 		else unmuteBtn.update(window.getSize());
 	}
+	// Very complex upgrade randomization system (whataheil)
+	void randomizeUpgrades() {
+		//Randomize first upg. Test if it matches other already obtained upgrades.
+		while(save.upg[upgrade1]) upgrade1=rand()%upgradeCount;
+		//If there remains only one not obtained upgrade - stop here.
+		//Otherwise it'll go in infinite loop.
+		if(obtainedUpgradeCount==upgradeCount-1) return;
+		//For the second check if it's already present or matches the first one.
+		while(save.upg[upgrade2]||upgrade2==upgrade1) upgrade2=rand()%upgradeCount;
+	}
 	// Draw User Interface(wow!)
 	void drawUI(bool tButtonVisible) {
 		//Draw counter
+		float themeValue=0;
+		if((Color.r+Color.g+Color.b)<1.5f) themeValue=1;
+		if(oldThemeVal!=themeValue) {
+			oldThemeVal=themeValue;
+			resetBtn.background=muteBtn.background=unmuteBtn.background=glm::vec4(glm::vec3(themeValue), 0.75f);
+			resetBtn.hover=muteBtn.hover=unmuteBtn.hover=glm::vec4(glm::vec3(themeValue), 1);
+		}
 		counter.draw(&text, std::to_string(save.points), window.getSize(),
-			glm::vec2((window.getWidth() / 2) - 16 *(std::to_string(save.points).length()), window.getHeight() - 75), glm::vec2(1), glm::vec4(1));
+			glm::vec2((window.getWidth() / 2) - 16 *(std::to_string(save.points).length()), window.getHeight() - 75), glm::vec2(1),
+			glm::vec4(glm::vec3(themeValue),1));
 		//Draw general UI
 		text.enable();
 		text.setBool("colorToSampledAlpha", true);
@@ -352,25 +369,27 @@ class FROGADROID : public Firesteel::App {
 		text.enable();
 		text.setBool("colorToSampledAlpha", false);
 		//Draw prestiege button
-		if(tButtonVisible && !showPrestiegeBtns) {
+		if(tButtonVisible && !showUpgradeCards) {
 			//TODO: Add TextButton to `fs.ui`.
-			prestiegeBtn.draw(&text, window.getSize());
-			if(save.points<77777||save.prestiege>2)
+			if((upgradeCount!=obtainedUpgradeCount)||(save.points>=77777&&save.prestiege>2))
+				prestiegeBtn.draw(&text, window.getSize());
+			if((save.points<77777||save.prestiege>2)&&upgradeCount!=obtainedUpgradeCount)
 				counter.draw(&text, "Prestiege", window.getSize(),
 					glm::vec3(window.getWidth() / 2 - 100, 185, 1), glm::vec2(1), glm::vec4(1));
-			else
+			else if(save.points>=77777)
 				counter.draw(&text, "Ascend", window.getSize(),
 					glm::vec3(window.getWidth() / 2 - 67, 185, 1), glm::vec2(1), glm::vec4(1));
 		}
 		//Draw upgrade cards
-		if(showPrestiegeBtns) {
+		if(showUpgradeCards) {
 			if(!randomizedCards) {
 				upgradeSfxs.init("res/audio/card_shuffle.mp3", 0.8f)->play();
-				upgrade1=rand()%upgradeCount;
-				upgrade2=rand()%upgradeCount;
-				while(upgrade2==upgrade1) upgrade2=rand()%upgradeCount;
+				if(randomizedCards!=upgradeCount) randomizeUpgrades();
+				else upgradeBtn1.onClick();
 				upgradeBtn1.background=glm::vec4(upgradeColor[upgrade1],1);
 				upgradeBtn2.background=glm::vec4(upgradeColor[upgrade2],1);
+				upgradeBtn1.hover=glm::vec4(upgradeColor[upgrade1],0.75f);
+				upgradeBtn2.hover=glm::vec4(upgradeColor[upgrade2],0.75f);
 				randomizedCards=true;
 			}
 			upgradeBtn1.draw(&text, window.getSize());
@@ -378,7 +397,7 @@ class FROGADROID : public Firesteel::App {
 			if(upgradeHovered!=-1){
 				const char* desc=upgradeDescription[upgradeHovered];
 				counter.draw(&text, desc, window.getSize(),
-					glm::vec3((window.getWidth() / 2) - 8 *(std::string(desc).length()), 30, 1), glm::vec2(0.5f), glm::vec4(1));
+					glm::vec3((window.getWidth() / 2) - 8 *(std::string(desc).length()), 30, 1), glm::vec2(0.5f), glm::vec4(glm::vec3(themeValue),1));
 			}
 		}
 	}
@@ -422,9 +441,6 @@ class FROGADROID : public Firesteel::App {
 		muteBtn.initialize("res\\icons\\sound_off.png", glm::vec2(10, 110), glm::vec2(50));
 		unmuteBtn.initialize("res\\icons\\sound_on.png", glm::vec2(10, 110), glm::vec2(50));
 		//Set UI styles
-		//resetBtn.background=resetBtn.hover=glm::vec4(glm::vec3(0), 1);
-		//muteBtn.background=muteBtn.hover=glm::vec4(glm::vec3(0), 1);
-		//unmuteBtn.background=unmuteBtn.hover=glm::vec4(glm::vec3(0), 1);
 		prestiegeBtn.background=glm::vec4(glm::vec3(0), 0.45f);
 		prestiegeBtn.hover=glm::vec4(glm::vec3(1), 0.25f);
 		//Set UI events
@@ -433,38 +449,44 @@ class FROGADROID : public Firesteel::App {
 		resetBtn.setClickCallback([]() {
 			LOG_INFO("Triggered reset");
 			displayFrog=&frogVariants[0];
-			save.points=save.prestiege=isBgRainbow=triggeredAnEnding=
-			showPrestiegeBtns=save.upgrades.holdToClick=save.upgrades.idleGain=save.upgrades.multiFrog=
+			save.points=save.prestiege=isBgRainbow=triggeredAnEnding=obtainedUpgradeCount=
+			showUpgradeCards=save.upg[0]=save.upg[1]=save.upg[2]=save.upg[3]=
 			randomizedCards=upgrade1=upgrade2=0;
+			holdClickCooldown.limit=0.5;
+			frogVariants[0].transform.position=
+				frogVariants[1].transform.position=
+				frogVariants[2].transform.position=
+				glm::vec3(0,0,-2);
+			upgradeSfxs.stop();
 			bg.play();
 		});
 		prestiegeBtn.setClickCallback([]() {
 			if(save.points<77777) {
 				if(save.prestiege == 2) {
-					showPrestiegeBtns=true;
+					showUpgradeCards=true;
 					bg.pause();
 				} else prestiegeEvent();
 			} else {
 				bg.pause();
-				if(!(save.upgrades.holdToClick&&
-					save.upgrades.idleGain&&
-					save.upgrades.multiFrog&&
+				if(!(save.holdToClick()&&
+					save.idleGain()&&
+					save.multiFrog()&&
 					(save.prestiege==2))) upgradeSfxs.init("res/audio/an_ending.mp3")->play();
 				else upgradeSfxs.init("res/audio/end_real.mp3")->play();
 				triggeredAnEnding=true;
 			}
 		});
 		upgradeBtn1.setClickCallback([]() {
+			save.obtain(upgrade1);
 			save.prestiege=0;
-			save.upgrades.obtain(upgrade1);
 			prestiegeEvent();
 			upgradeSfxs.init("res/audio/end_intermediate.mp3", 0.8f)->play();
 			bg.play();
 		});
 		upgradeBtn1.setHoverCallback([]() {upgradeHovered=upgrade1;});
 		upgradeBtn2.setClickCallback([]() {
+			save.obtain(upgrade2);
 			save.prestiege=0;
-			save.upgrades.obtain(upgrade2);
 			prestiegeEvent();
 			upgradeSfxs.init("res/audio/end_intermediate.mp3", 0.8f)->play();
 			bg.play();
@@ -486,6 +508,7 @@ class FROGADROID : public Firesteel::App {
 				(save.prestiege == 1 && save.points >= 10000) ||
 				(save.prestiege == 2 && save.points >= 12000);
 			//Handle updates
+			if(save.betterHoldToClick()) holdClickCooldown.limit=0.3;
 			updateUI(buttonVisible);
 			controlledMovement();
 			handleInput();
@@ -497,6 +520,30 @@ class FROGADROID : public Firesteel::App {
 			base.setMat4("projection", proj);
 			base.setMat4("view", view);
 			displayFrog->draw(&base);
+			if(save.multiFrog()) {
+				if(save.prestiege>=1) {
+					frogVariants[0].transform.size=glm::vec3(0.8f);
+					frogVariants[0].transform.rotation=-displayFrog->transform.rotation;
+					frogVariants[0].transform.position=glm::vec3(
+						1.25f*cos(speeenMultiFrog*(3.14f/180.f)),
+						1.25f*sin(speeenMultiFrog*(3.14f/180.f)),
+						-4
+					);
+					frogVariants[0].draw(&base);
+				}
+				if(save.prestiege==2) {
+					frogVariants[1].transform.size=glm::vec3(0.8f);
+					frogVariants[1].transform.rotation=-displayFrog->transform.rotation;
+					frogVariants[1].transform.position=glm::vec3(
+						1.25f*cos((speeenMultiFrog-180.f)*(3.14f/180.f)),
+						1.25f*sin((speeenMultiFrog-180.f)*(3.14f/180.f)),
+						-4
+					);
+					frogVariants[1].draw(&base);
+				}
+				speeenMultiFrog+=0.035f;
+				if(speeenMultiFrog>=360.f) speeenMultiFrog=0;
+			}
 			//Almost forgot about UI
 			drawUI(buttonVisible);
 		} else {
@@ -505,7 +552,7 @@ class FROGADROID : public Firesteel::App {
 			resetBtn.update(window.getSize());
 			//Prepare for a draw call
 			text.enable();
-			if(!(save.upgrades.hasAll()&&(save.prestiege==2)))
+			if(!(save.hasAll()&&(save.prestiege==2)))
 				window.setClearColor(glm::vec3(1, 0.01f, 0.01f));
 			else window.setClearColor(glm::vec3(0.9f));
 			//Draw reset button
@@ -545,7 +592,8 @@ Entity FROGADROID::frogVariants[3]={
 unsigned int FROGADROID::upgrade1=0, FROGADROID::upgrade2=0;
 Timer FROGADROID::holdClickCooldown{0,0.5}, FROGADROID::idleCooldown{0,5};
 int FROGADROID::upgradeHovered=-1;
-bool FROGADROID::isBgRainbow=false, FROGADROID::showPrestiegeBtns=false, FROGADROID::randomizedCards=false, FROGADROID::triggeredAnEnding=false,
+float FROGADROID::oldThemeVal=2;
+bool FROGADROID::isBgRainbow=false, FROGADROID::showUpgradeCards=false, FROGADROID::randomizedCards=false, FROGADROID::triggeredAnEnding=false,
 	FROGADROID::canClick=true;
 Entity* FROGADROID::displayFrog=nullptr;
 Source FROGADROID::bg{}, FROGADROID::upgradeSfxs{};
