@@ -6,6 +6,9 @@ add_executable(FROGAPP
 	"main.cpp"
 	"embedded.hpp"
 	"build/app.rc"
+	"include/ambient.hpp"
+	"include/ui.hpp"
+	"include/datatypes.hpp"
 )
 target_link_libraries(FROGAPP
 	firesteel

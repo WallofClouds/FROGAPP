@@ -4,10 +4,13 @@
 #include "engine/include/camera.hpp"
 #include "engine/include/input/input.hpp"
 #include "engine/include/utils/utils.hpp"
+#include "include/ambient.hpp"
+#include "include/ui.hpp"
+#include "include/datatypes.hpp"
 #include <fs.ui/include/text.hpp>
+#include <fs.ui/include/generic.hpp>
 #include <openal/include/listener.hpp>
 #include <openal/include/source.hpp>
-#include <fs.ui/include/generic.hpp>
 #include <time.h>
 #include <future>
 #include <chrono>
@@ -16,94 +19,7 @@
 using namespace Firesteel;
 using namespace FSOAL;
 
-/// Random window titles
-const size_t winNameVariantsNum=12;
-const char* winNameVariants[winNameVariantsNum]={
-	"You need to burn your pc, now.",
-	"Also try &^@#$*%!",
-	"You burned your pc? Good. Now disintegrate yourself.",
-	"With a fine layer of BBQ.",
-	"Better hot.",
-	"Better cold.",
-	"Never gonna throw you out of the window.",
-	"*beep*",
-	"*womp*,*womp*",
-	"Get gnomed!",
-	"GET DUNKED OOOOOOOOOON!!!",
-	"Try Terraria Infernum \U+1F480"
-};
-/// Upgrades
-const unsigned int upgradeCount=4;
 unsigned int obtainedUpgradeCount=0;
-const char* upgradeDescription[upgradeCount]={
-	"Hold any mouse button/spacebar to gain points",
-	"Get points from all the frogs",
-	"Frogs idly generate points",
-	"Get points faster when holding"
-};
-glm::vec3 upgradeColor[upgradeCount]={
-	glm::vec3(1,0,0),
-	glm::vec3(0,1,0),
-	glm::vec3(0,0,1),
-	glm::vec3(1,0,0.5f)
-};
-/// Custom data types
-struct Timer {
-	double time=0.0;
-	double limit=60.0;
-
-	void start() {time=limit;}
-	void reset() {time=0;}
-	void tick() {time-=1;}
-	void tick(double tDT) {time-=tDT;}
-	bool isOver() {return time<=0;}
-};
-struct SaveData {
-	unsigned int points;
-	unsigned int prestiege;
-	bool upg[upgradeCount];
-
-	void obtain(unsigned int tId) {
-		if(tId>=upgradeCount) return;
-		obtainedUpgradeCount+=1;
-	}
-	bool holdToClick() {return upg[0];}
-	bool multiFrog() {return upg[1];}
-	bool idleGain() {return upg[2];}
-	bool betterHoldToClick() {return upg[3];}
-	bool hasAll() {
-		for(unsigned int i=0;i<upgradeCount;i++)
-			if(!upg[i]) return false;
-		return true;
-	}
-
-	void load() {
-		if(!std::filesystem::exists("save")) return;
-		//Parse save if it exists
-		std::vector<std::string> saveFile=StrSplit(StrFromFile("save"),'\n');
-		points=std::stoi(saveFile[0]);
-		if(saveFile.size()>1) prestiege=std::stoi(saveFile[1]);
-		//Load upgrades
-		if(saveFile.size()>2) {
-			upg[0]=std::stoi(saveFile[2]);
-			upg[1]=std::stoi(saveFile[3]);
-			upg[2]=std::stoi(saveFile[4]);
-		}
-		if(saveFile.size()>5) upg[3]=std::stoi(saveFile[5]);
-		//Enumerate obtained updates
-		for(unsigned int i=0;i<upgradeCount;i++)
-			if(upg[i]) obtainedUpgradeCount+=1;
-	}
-	void save() {
-		StrToFile("save",
-			std::to_string(points) + "\n"
-			+ std::to_string(prestiege) + "\n"
-			+ std::to_string(holdToClick()) + "\n"
-			+ std::to_string(multiFrog()) + "\n"
-			+ std::to_string(idleGain()) + "\n"
-			+ std::to_string(betterHoldToClick()));
-	}
-};
 
 class FROGADROID : public Firesteel::App {
 	// Local variables
@@ -224,119 +140,7 @@ class FROGADROID : public Firesteel::App {
 			break;
 		}
 	}
-	// Have fun with background
-	void handleBG() {
-		unsigned int& points=save.points;
-		switch(save.prestiege) {
-		case 0:
-			if(!isBgRainbow && points >= 2500) {
-				isBgRainbow=true;
-				Color=glm::vec3(0, 0, 1);
-			}
-			if(points<100)		Color=glm::vec3(0.75f);					//White
-			else if(points<200)	Color=glm::vec3(0.8f, 0.8f, 0.15f);		//Yellow
-			else if(points<400)	Color=glm::vec3(0.15f, 0.15f, 0.8f);	//Blue
-			else if(points<600)	Color=glm::vec3(0.8f, 0.15f, 0.15f);	//Red
-			else if(points<800)	Color=glm::vec3(0.15f, 0.8f, 0.15f);	//Green
-			else if(points<1000)	Color=glm::vec3(0.45f, 0.15f, 0.2f);	//Purple
-			else if(points<2500)	Color=glm::vec3(0.85f, 0.3f, 0.3f);		//Pink
-			else {
-				if(Color.r >= 0.99f) state=1;
-				if(Color.g >= 0.99f) state=2;
-				if(Color.b >= 0.99f) state=0;
-				if(state == 0) Color += glm::vec3(0.0002f, 0, -0.0002f);
-				if(state == 1) Color += glm::vec3(-0.0002f, 0.0002f, 0);
-				if(state == 2) Color += glm::vec3(0, -0.0002f, 0.0002f);
-			}
-			break;
-		case 1:
-			if(!isBgRainbow && points >= 2500) {
-				isBgRainbow=true;
-				Color=glm::vec3(0, 0, 1);
-			}
-			if(points<100)		Color=HexToRGB("#8f430d");	//Brown
-			else if(points<200)	Color=HexToRGB("#2b4cb5");	//Blue
-			else if(points<400)	Color=HexToRGB("#641cd9");	//Purple
-			else if(points<600)	Color=HexToRGB("#8b911c");	//Yellow
-			else if(points<800)	Color=HexToRGB("#1c9126");	//Green
-			else if(points<1000)	Color=HexToRGB("#2fb1bd");	//Cyan
-			else if(points<2500)	Color=HexToRGB("#18c792");	//Cyan-Green
-			else {
-				if(Color.r >= 0.99f) state=1;
-				if(Color.g >= 0.99f) state=2;
-				if(Color.b >= 0.99f) state=0;
-				if(state == 0) Color += glm::vec3(0.0002f, 0, -0.0002f);
-				if(state == 1) Color += glm::vec3(-0.0002f, 0.0002f, 0);
-				if(state == 2) Color += glm::vec3(0, -0.0002f, 0.0002f);
-			}
-			break;
-		default:
-			if(!isBgRainbow && points >= 2500) {
-				isBgRainbow=true;
-				Color=glm::vec3(0, 0, 1);
-			}
-			if(points<100)		Color=HexToRGB("#454d4a");	//Dark-Gray
-			else if(points<200)	Color=HexToRGB("#731a1a");	//Dark-Red
-			else if(points<400)	Color=HexToRGB("#c7bf87");	//Light-Yellow
-			else if(points<600)	Color=HexToRGB("#1b4d27");	//Dark-Green
-			else if(points<800)	Color=HexToRGB("#1b4d41");	//Dark-Cyan
-			else if(points<1000)	Color=HexToRGB("#17247a");	//Dark-Blue
-			else if(points<2500)	Color=HexToRGB("#c44764");	//Light-Red
-			else {
-				if(Color.r >= 0.99f) state=1;
-				if(Color.g >= 0.99f) state=2;
-				if(Color.b >= 0.99f) state=0;
-				if(state == 0) Color += glm::vec3(0.0002f, 0, -0.0002f);
-				if(state == 1) Color += glm::vec3(-0.0002f, 0.0002f, 0);
-				if(state == 2) Color += glm::vec3(0, -0.0002f, 0.0002f);
-			}
-			break;
-		}
-		window.setClearColor(Color);
-	}
-	// Move and rotate the frog.
-	void controlledMovement() {
-		//Control size
-		if(Size.y>7 && !sizeState) {
-			sizeState=true;
-			sizeAccel=0.00001f;
-		} else if(Size.y <= 1 && sizeState) {
-			sizeState=false;
-			sizeAccel=0.00001f;
-		}
-		//Determine if frog should expand or shrink
-		if(!sizeState) Size += glm::vec3(sizeAccel * deltaTime);
-		else Size -= glm::vec3(sizeAccel * deltaTime);
-		//Update knwon acceleration
-		sizeAccel += 0.00001f;
-		if(impact>0) impact -= 0.001f;
-		//Apply new knowledge
-		displayFrog->transform.size=glm::vec3(3 + std::clamp(save.points/10000, 0U, 5U), 1, 1.2f) + Size + glm::vec3(impact);
-		displayFrog->transform.rotation += glm::vec3(0, 0.02f, 0.02f);
-	}
-	// Setup UI positions
-	void updateUI(bool tButtonVisible) {
-		//Is prestiege button needed?
-		if(tButtonVisible && !showUpgradeCards) {
-			prestiegeBtn.setPositon(glm::vec2(window.getWidth() / 2 - 120, 200));
-			prestiegeBtn.update(window.getSize());
-		}
-		//Setup upgrade cards
-		if(showUpgradeCards) {
-			upgradeBtn1.setSize(glm::vec2(window.getWidth() * 0.2f, window.getHeight() * 0.35f));
-			upgradeBtn2.setSize(glm::vec2(window.getWidth() * 0.2f, window.getHeight() * 0.35f));
-			upgradeBtn1.setPositon(glm::vec2(70, upgradeBtn1.getSize().y + 32));
-			upgradeBtn2.setPositon(glm::vec2(window.getWidth() - upgradeBtn2.getSize().x - 70, upgradeBtn2.getSize().y + 32));
-			upgradeHovered=-1;
-			upgradeBtn1.update(window.getSize());
-			upgradeBtn2.update(window.getSize());
-		}
-		//Setup general UI
-		resetBtn.setPositon(glm::vec2(10, 60));
-		resetBtn.update(window.getSize());
-		if(!bg.isPlaying()) muteBtn.update(window.getSize());
-		else unmuteBtn.update(window.getSize());
-	}
+	
 	// Very complex upgrade randomization system (whataheil)
 	void randomizeUpgrades() {
 		//Randomize first upg. Test if it matches other already obtained upgrades.
@@ -347,63 +151,10 @@ class FROGADROID : public Firesteel::App {
 		//For the second check if it's already present or matches the first one.
 		while(save.upg[upgrade2]||upgrade2==upgrade1) upgrade2=rand()%upgradeCount;
 	}
-	// Draw User Interface(wow!)
-	void drawUI(bool tButtonVisible) {
-		//Draw counter
-		float themeValue=0;
-		if((Color.r+Color.g+Color.b)<1.5f) themeValue=1;
-		if(oldThemeVal!=themeValue) {
-			oldThemeVal=themeValue;
-			resetBtn.background=muteBtn.background=unmuteBtn.background=glm::vec4(glm::vec3(themeValue), 0.75f);
-			resetBtn.hover=muteBtn.hover=unmuteBtn.hover=glm::vec4(glm::vec3(themeValue), 1);
-		}
-		counter.draw(&text, std::to_string(save.points), window.getSize(),
-			glm::vec2((window.getWidth() / 2) - 16 *(std::to_string(save.points).length()), window.getHeight() - 75), glm::vec2(1),
-			glm::vec4(glm::vec3(themeValue),1));
-		//Draw general UI
-		text.enable();
-		text.setBool("colorToSampledAlpha", true);
-		resetBtn.draw(&text, window.getSize());
-		if(!bg.isPlaying()) muteBtn.draw(&text, window.getSize());
-		else unmuteBtn.draw(&text, window.getSize());
-		text.enable();
-		text.setBool("colorToSampledAlpha", false);
-		//Draw prestiege button
-		if(tButtonVisible && !showUpgradeCards) {
-			//TODO: Add TextButton to `fs.ui`.
-			if((upgradeCount!=obtainedUpgradeCount)||(save.points>=77777&&save.prestiege>2))
-				prestiegeBtn.draw(&text, window.getSize());
-			if((save.points<77777||save.prestiege>2)&&upgradeCount!=obtainedUpgradeCount)
-				counter.draw(&text, "Prestiege", window.getSize(),
-					glm::vec3(window.getWidth() / 2 - 100, 185, 1), glm::vec2(1), glm::vec4(1));
-			else if(save.points>=77777)
-				counter.draw(&text, "Ascend", window.getSize(),
-					glm::vec3(window.getWidth() / 2 - 67, 185, 1), glm::vec2(1), glm::vec4(1));
-		}
-		//Draw upgrade cards
-		if(showUpgradeCards) {
-			if(!randomizedCards) {
-				upgradeSfxs.init("res/audio/card_shuffle.mp3", 0.8f)->play();
-				if(randomizedCards!=upgradeCount) randomizeUpgrades();
-				else upgradeBtn1.onClick();
-				upgradeBtn1.background=glm::vec4(upgradeColor[upgrade1],1);
-				upgradeBtn2.background=glm::vec4(upgradeColor[upgrade2],1);
-				upgradeBtn1.hover=glm::vec4(upgradeColor[upgrade1],0.75f);
-				upgradeBtn2.hover=glm::vec4(upgradeColor[upgrade2],0.75f);
-				randomizedCards=true;
-			}
-			upgradeBtn1.draw(&text, window.getSize());
-			upgradeBtn2.draw(&text, window.getSize());
-			if(upgradeHovered!=-1){
-				const char* desc=upgradeDescription[upgradeHovered];
-				counter.draw(&text, desc, window.getSize(),
-					glm::vec3((window.getWidth() / 2) - 8 *(std::string(desc).length()), 30, 1), glm::vec2(0.5f), glm::vec4(glm::vec3(themeValue),1));
-			}
-		}
-	}
 
 	// Runs after window and renderer initialization.
 	virtual void onInitialize() override {
+		window.setVSync(true);
 		window.setIconFromMemory(ucIconData, ucIconDataSize);
 		//Initialize rendering stuff
 		frogVariants[0].load("res\\frogs\\tiny_frog\\scene.gltf");
@@ -501,7 +252,7 @@ class FROGADROID : public Firesteel::App {
 	// Runs each frame.
 	virtual void onUpdate() override {
 		if(!triggeredAnEnding) {
-			handleBG();
+			handleBG(Color, isBgRainbow, save.points, save.prestiege);
 			//Check if prestiege button should be visible
 			bool buttonVisible =
 				(save.prestiege == 0 && save.points >= 3000) ||
@@ -510,7 +261,7 @@ class FROGADROID : public Firesteel::App {
 			//Handle updates
 			if(save.betterHoldToClick()) holdClickCooldown.limit=0.3;
 			updateUI(buttonVisible);
-			controlledMovement();
+			controlledMovement(deltaTime, save.points, displayFrog, Size);
 			handleInput();
 			//Prepare for a draw call
 			camera.aspect=window.aspect();
@@ -558,6 +309,7 @@ class FROGADROID : public Firesteel::App {
 			//Draw reset button
 			resetBtn.draw(&text, window.getSize());
 		}
+		window.setClearColor(Color);
 	}
 	// Runs after window.close() is called or on window closing.
 	virtual void onShutdown() override {

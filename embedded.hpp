@@ -1,3 +1,38 @@
+#include <glm/vec3.hpp>
+
+/// Random window titles
+const size_t winNameVariantsNum = 12;
+const char* winNameVariants[winNameVariantsNum] = {
+	"You need to burn your pc, now.",
+	"Also try &^@#$*%!",
+	"You burned your pc? Good. Now disintegrate yourself.",
+	"With a fine layer of BBQ.",
+	"Better hot.",
+	"Better cold.",
+	"Never gonna throw you out of the window.",
+	"*beep*",
+	"*womp*,*womp*",
+	"Get gnomed!",
+	"GET DUNKED OOOOOOOOOON!!!",
+	"Try Terraria Infernum \\U+1F480"
+};
+
+/// Upgrades
+const unsigned int upgradeCount = 4;
+const char* upgradeDescription[upgradeCount] = {
+	"Hold any mouse button/spacebar to gain points",
+	"Get points from all the frogs",
+	"Frogs idly generate points",
+	"Get points faster when holding"
+};
+glm::vec3 upgradeColor[upgradeCount] = {
+	glm::vec3(1,0,0),
+	glm::vec3(0,1,0),
+	glm::vec3(0,0,1),
+	glm::vec3(1,0,0.5f)
+};
+
+/// Icon
 const size_t ucIconDataSize = 24680;
 unsigned char ucIconData[ucIconDataSize] = {
 	// Offset 0x00000000 to 0x00006067
